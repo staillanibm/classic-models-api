@@ -27,8 +27,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . /app/
 
-# Make startup script executable
-RUN chmod +x /app/scripts/start.sh
+# Make startup scripts executable
+RUN chmod +x /app/scripts/start.sh /app/scripts/migrate.sh
 
 # Expose port
 EXPOSE 8000

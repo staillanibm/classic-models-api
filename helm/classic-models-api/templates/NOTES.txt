@@ -1,0 +1,43 @@
+Classic Models API has been deployed to namespace "{{ .Values.namespace }}".
+
+{{- if .Values.route.enabled }}
+
+Route:
+{{- if .Values.route.host }}
+  https://{{ .Values.route.host }}
+{{- else }}
+  Run: oc get route classic-models-api -n {{ .Values.namespace }} -o jsonpath='{.spec.host}'
+  (host is cluster-assigned since route.host was left empty)
+{{- end }}
+
+Health check:
+  curl -sk https://<route-host>/classic-models/health/
+
+API docs (Swagger UI):
+  https://<route-host>/classic-models/api/docs/
+{{- else }}
+
+route.enabled is false: no Route was created. Use `oc port-forward` or your own
+Ingress in front of the "classic-models-api" Service (port 8000) to reach the API.
+{{- end }}
+
+Generated secrets (SECRET_KEY, API_KEY, MySQL passwords) live in:
+  oc get secret classic-models-api-secrets -n {{ .Values.namespace }} -o yaml
+  oc get secret mysql-credentials -n {{ .Values.namespace }} -o yaml
+
+They were auto-generated on first install and are preserved across
+`helm upgrade` (see templates/_helpers.tpl: classic-models-api.secretValue).
+To pin your own values instead, set them under `secrets:` in values.yaml
+before the first install.
+
+Database migrations run automatically as a pre-install/pre-upgrade Helm hook
+(templates/api/migrate-job.yaml) — no manual step needed, unlike the old
+plain-manifests flow under k8s/.
+
+Image: this chart does NOT build the application image. Build/push it first,
+e.g. via an OpenShift binary build from the repo root:
+  oc create imagestream classic-models-api -n {{ .Values.namespace }}
+  oc new-build --name=classic-models-api --strategy=docker --binary -n {{ .Values.namespace }}
+  oc start-build classic-models-api --from-dir=. --follow -n {{ .Values.namespace }}
+Then point values.yaml's api.image.repository/tag at the built image (defaults
+already match the internal ImageStream produced by the commands above).

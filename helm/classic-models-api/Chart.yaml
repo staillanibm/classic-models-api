@@ -1,0 +1,6 @@
+apiVersion: v2
+name: classic-models-api
+description: Classic Models API (Django/DRF) and its MySQL dependency, for OpenShift restricted-v2
+type: application
+version: 0.1.0
+appVersion: "4.7.0"

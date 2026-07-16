@@ -1,0 +1,64 @@
+# Run once before rolling out/upgrading classic-models-api, e.g.:
+#   oc delete job classic-models-api-migrate -n classic-models --ignore-not-found
+#   oc apply -f k8s/03a-migrate-job.yaml
+#   oc wait --for=condition=complete job/classic-models-api-migrate -n classic-models --timeout=120s
+#   oc apply -f k8s/03-deployment.yaml
+#
+# Kept as a separate, manually-triggered Job (not a Helm pre-upgrade hook yet)
+# so a single run applies migrations before any replica starts, avoiding the
+# race where multiple pods run `manage.py migrate` concurrently at boot.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: classic-models-api-migrate
+  namespace: classic-models
+  labels:
+    app.kubernetes.io/name: classic-models-api
+    app.kubernetes.io/instance: classic-models-api
+    app.kubernetes.io/component: migrate
+    app.kubernetes.io/part-of: classic-models-api
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: classic-models-api
+        app.kubernetes.io/instance: classic-models-api
+        app.kubernetes.io/component: migrate
+        app.kubernetes.io/part-of: classic-models-api
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: image-registry.openshift-image-registry.svc:5000/classic-models/classic-models-api:latest
+          imagePullPolicy: Always
+          command: ["bash", "/app/scripts/migrate.sh"]
+          envFrom:
+            - configMapRef:
+                name: classic-models-api-config
+            - secretRef:
+                name: classic-models-api-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

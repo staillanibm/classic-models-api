@@ -1,6 +1,6 @@
 # Classic Models API - Simplified Makefile
 
-.PHONY: build start stop health-check test postman-test clean help version patch minor major
+.PHONY: build tag push start stop health-check test postman-test clean help version patch minor major
 
 # Default target
 .DEFAULT_GOAL := help
@@ -12,10 +12,30 @@ BLUE := \033[0;34m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
+# Plain `docker build`/`docker push` (or podman) — no OpenShift/BuildConfig
+# dependency, so this works against any registry on any Kubernetes distribution.
+# Tag format matches the CI pipeline (.github/workflows/docker-build.yml):
+# vX.Y.Z, derived from the same API_VERSION as scripts/get_version.sh, so a
+# manual `make push` produces the exact same tag the CI would produce for
+# that version.
+# Override REGISTRY/IMAGE_NAME/IMAGE_TAG/CONTAINER_ENGINE as needed, e.g.:
+#   make push REGISTRY=quay.io/myorg IMAGE_NAME=classic-models-api IMAGE_TAG=v1.2.3
+#   make push CONTAINER_ENGINE=podman
+REGISTRY ?= ghcr.io
+IMAGE_NAME ?= staillanibm/classic-models-api
+IMAGE := $(REGISTRY)/$(IMAGE_NAME)
+# Empty by default: derived from the current git tag (v-prefixed) at build
+# time, same source of truth as CI. Override explicitly to tag/push something
+# other than the current version, e.g. IMAGE_TAG=v1.2.3.
+IMAGE_TAG ?=
+CONTAINER_ENGINE ?= $(shell command -v docker >/dev/null 2>&1 && echo docker || echo podman)
+
 help: ## Show this help message
 	@echo "$(BLUE)Classic Models API - Available Commands$(NC)"
 	@echo ""
 	@echo "  $(GREEN)build$(NC)        - Build the Docker containers"
+	@echo "  $(GREEN)tag$(NC)          - Build and tag the API image as vX.Y.Z (same scheme as CI)"
+	@echo "  $(GREEN)push$(NC)         - Build, tag and push the API image to REGISTRY/IMAGE_NAME"
 	@echo "  $(GREEN)start$(NC)        - Start the containers (database resets to original data)"
 	@echo "  $(GREEN)stop$(NC)         - Stop the containers"
 	@echo "  $(GREEN)test$(NC)         - Run the test suite"
@@ -28,6 +48,10 @@ help: ## Show this help message
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
 	@echo "  make build        # Build containers"
+	@echo "  make push REGISTRY=quay.io/myorg IMAGE_NAME=classic-models-api # Build, tag and push"
+	@echo "  make push IMAGE_TAG=v1.2.3        # Push a specific tag instead of the derived version"
+	@echo "  make push CONTAINER_ENGINE=podman # Use podman instead of docker"
+	@echo "  make push TAG_LATEST=1            # Also tag/push :latest"
 	@echo "  make start        # Start with fresh database"
 	@echo "  make test         # Run all tests"
 	@echo "  make postman-test # Run Postman collection tests"
@@ -41,6 +65,28 @@ build: ## Build the Docker containers
 	@echo "$(BLUE)Building Docker containers...$(NC)"
 	@source scripts/get_version.sh && docker-compose build --build-arg API_VERSION=$$API_VERSION
 	@echo "$(GREEN)✓ Containers built successfully$(NC)"
+
+# TAG_LATEST=1 also tags/pushes :latest. Off by default: unlike CI (which only
+# tags latest when the pushed version is the highest existing semver tag),
+# this doesn't check — enable it manually only when you know that's true.
+TAG_LATEST ?=
+
+tag: ## Build and tag the API image (REGISTRY/IMAGE_NAME/IMAGE_TAG/CONTAINER_ENGINE/TAG_LATEST)
+	@source scripts/get_version.sh && \
+		TAG=$${IMAGE_TAG:-v$$API_VERSION} && \
+		echo "$(BLUE)Building and tagging $(IMAGE):$$TAG with $(CONTAINER_ENGINE)...$(NC)" && \
+		EXTRA_TAGS="" && \
+		if [ -n "$(TAG_LATEST)" ]; then EXTRA_TAGS="-t $(IMAGE):latest"; fi && \
+		$(CONTAINER_ENGINE) build --build-arg API_VERSION=$$API_VERSION -t $(IMAGE):$$TAG $$EXTRA_TAGS . && \
+		echo "$(GREEN)✓ Tagged $(IMAGE):$$TAG$(if $(TAG_LATEST), and $(IMAGE):latest)$(NC)"
+
+push: tag ## Build, tag and push the API image to REGISTRY/IMAGE_NAME
+	@source scripts/get_version.sh && \
+		TAG=$${IMAGE_TAG:-v$$API_VERSION} && \
+		echo "$(BLUE)Pushing $(IMAGE):$$TAG with $(CONTAINER_ENGINE) (make sure you're logged in: $(CONTAINER_ENGINE) login $(REGISTRY))...$(NC)" && \
+		$(CONTAINER_ENGINE) push $(IMAGE):$$TAG && \
+		if [ -n "$(TAG_LATEST)" ]; then $(CONTAINER_ENGINE) push $(IMAGE):latest; fi
+	@echo "$(GREEN)✓ Pushed $(IMAGE)$(NC)"
 
 start: ## Start the containers (database resets to original data)
 	@echo "$(BLUE)Starting containers with fresh database...$(NC)"

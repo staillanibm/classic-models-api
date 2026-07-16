@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: classic-models-api-allow-ingress
+  namespace: classic-models
+  labels:
+    app.kubernetes.io/name: classic-models-api
+    app.kubernetes.io/part-of: classic-models-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: classic-models-api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from the OpenShift router (Route) and from any pod in this
+    # namespace (e.g. for future sidecars/jobs). Adjust to your router's
+    # namespaceSelector if you need to lock this down further.
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mysql-allow-api
+  namespace: classic-models
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/part-of: classic-models-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: classic-models-api
+      ports:
+        - protocol: TCP
+          port: 3306

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-data
+  namespace: classic-models
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: classic-models-mysql
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: classic-models-api
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # storageClassName intentionally omitted to use the cluster default.
+  # Set explicitly if your OCP cluster requires it, e.g. "ocs-storagecluster-ceph-rbd".

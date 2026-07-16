@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: classic-models-api
+  namespace: classic-models
+  labels:
+    app.kubernetes.io/name: classic-models-api
+    app.kubernetes.io/instance: classic-models-api
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: classic-models-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: classic-models-api
+    app.kubernetes.io/instance: classic-models-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP

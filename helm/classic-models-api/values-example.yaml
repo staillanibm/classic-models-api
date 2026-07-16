@@ -1,0 +1,57 @@
+# Example values.yaml for a real deployment. Copy this file, adjust it to
+# your cluster/registry, and pass it to Helm:
+#
+#   helm install classic-models-api helm/classic-models-api \
+#     -n classic-models -f my-values.yaml
+#
+# Anything not overridden here falls back to helm/classic-models-api/values.yaml.
+# See README.md for the full prerequisite sequence (namespace, image build,
+# no --create-namespace).
+
+api:
+  image:
+    # Point this at wherever you built/pushed the image, e.g. the OpenShift
+    # internal ImageStream (see README.md) or an external registry produced by
+    # `make push` (see the repo root Makefile):
+    #   repository: ghcr.io/your-org/classic-models-api
+    #   tag: v4.7.0
+    #   pullPolicy: IfNotPresent
+    repository: image-registry.openshift-image-registry.svc:5000/classic-models/classic-models-api
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  config:
+    allowedHosts: "classic-models-api.apps.example.com"
+    jwtIssuer: "https://your-issuer.example.com"
+    jwtAudience: "classic-models-api"
+
+route:
+  enabled: true
+  # Leave empty to let OpenShift assign a host, or pin one explicitly:
+  host: "classic-models-api.apps.example.com"
+
+mysql:
+  storage:
+    size: 10Gi
+    # Set to your cluster's storage class if it doesn't have a sane default,
+    # e.g. "ocs-storagecluster-ceph-rbd" on OpenShift Data Foundation.
+    storageClassName: ""
+
+# Secrets are auto-generated on first install and preserved across upgrades
+# (see templates/_helpers.tpl). Only set these explicitly if you need
+# reproducible/pinned values, e.g. restoring into an existing database that
+# already has a fixed MySQL password, or providing real RS256 keys instead of
+# falling back to HS256:
+# secrets:
+#   mysqlRootPassword: "..."
+#   mysqlPassword: "..."
+#   secretKey: "..."
+#   apiKey: "..."
+#   jwtPrivateKeyPem: |
+#     -----BEGIN PRIVATE KEY-----
+#     ...
+#     -----END PRIVATE KEY-----
+#   jwtPublicKeyPem: |
+#     -----BEGIN PUBLIC KEY-----
+#     ...
+#     -----END PUBLIC KEY-----

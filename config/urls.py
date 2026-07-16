@@ -7,8 +7,11 @@ from drf_spectacular.views import (
 )
 from rest_framework.permissions import AllowAny
 
+from .views import health_view
+
 # All URLs are served under /classic-models base path
 urlpatterns = [
+    path("classic-models/health/", health_view, name="health"),
     path("classic-models/admin/", admin.site.urls),
     path("classic-models/api/v1/", include("api.v1.urls")),
     path("classic-models/api/auth/", include("authentication.urls")),

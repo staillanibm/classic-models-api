@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: classic-models-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "classic-models-api.apiLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: classic-models-api
+    app.kubernetes.io/instance: classic-models-api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP

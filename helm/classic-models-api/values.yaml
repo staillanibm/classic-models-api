@@ -1,0 +1,61 @@
+namespace: classic-models
+
+api:
+  image:
+    repository: image-registry.openshift-image-registry.svc:5000/classic-models/classic-models-api
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  gunicorn:
+    workers: 3
+    timeout: 30
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  config:
+    debug: "0"
+    apiVersion: "4.7.0"
+    allowedHosts: "*"
+    jwtIssuer: "https://your-issuer.example.com"
+    jwtAudience: "classic-models-api"
+    jwtLeewaySeconds: "0"
+  # Set to enforce HTTPS-only redirects (only if fronted by a proxy that
+  # forwards X-Forwarded-Proto for probe traffic too — see config/settings/production.py).
+  secureSslRedirect: false
+
+route:
+  enabled: true
+  host: "" # leave empty to let OpenShift assign one
+
+mysql:
+  image:
+    repository: registry.redhat.io/rhel8/mysql-80
+    tag: latest
+    pullPolicy: IfNotPresent
+  database: classicmodels
+  user: classicuser
+  storage:
+    size: 5Gi
+    storageClassName: "" # empty = cluster default
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# Secrets are auto-generated on first install (see templates/api/secret.yaml and
+# templates/mysql/secret.yaml) and preserved across upgrades via `lookup`.
+# Override any of these to pin specific values instead (e.g. for a restore).
+secrets:
+  secretKey: ""
+  apiKey: ""
+  mysqlRootPassword: ""
+  mysqlPassword: ""
+  jwtPrivateKeyPem: ""
+  jwtPublicKeyPem: ""
