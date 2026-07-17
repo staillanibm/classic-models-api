@@ -23,6 +23,15 @@ api:
     jwtIssuer: "https://your-issuer.example.com"
     jwtAudience: "classic-models-api"
     jwtLeewaySeconds: "0"
+    # Set to enable RS256 verification via an external OIDC IdP's JWKS
+    # endpoint (Keycloak, Auth0, Entra ID...) instead of the internal
+    # login/refresh flow's own signing key. Leave empty to keep using only
+    # the internal HS256/RS256 flow (authentication.views).
+    jwtJwkUrl: ""
+    # Dot-separated claim path carrying role names for RBAC group sync
+    # (authentication.oidc_auth). Defaults to Keycloak's realm_access.roles
+    # when unset.
+    jwtRolesClaimPath: ""
   # Set to enforce HTTPS-only redirects (only if fronted by a proxy that
   # forwards X-Forwarded-Proto for probe traffic too — see config/settings/production.py).
   secureSslRedirect: false

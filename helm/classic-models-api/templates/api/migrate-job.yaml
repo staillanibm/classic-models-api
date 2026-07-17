@@ -7,9 +7,16 @@ metadata:
     {{- include "classic-models-api.apiLabels" . | nindent 4 }}
     app.kubernetes.io/component: migrate
   annotations:
-    # Runs once before every install/upgrade, ahead of the Deployment rollout,
-    # so no two API replicas ever race to run `manage.py migrate` concurrently.
-    "helm.sh/hook": pre-install,pre-upgrade
+    # Runs once after every install/upgrade, as a post-install/post-upgrade
+    # hook: by then MySQL/Secrets/ConfigMaps (plain resources, applied before
+    # any hook fires) already exist, so the migrate.sh MySQL-wait loop has
+    # something to actually wait for. A pre-install/pre-upgrade hook would run
+    # before those plain resources exist at all, on the very first install.
+    # The API Deployment's startupProbe (failureThreshold: 30, ~150s) covers
+    # the short window where pods are up but migrations haven't finished yet
+    # — no separate lock is needed since this Job itself is never run twice
+    # concurrently for the same release.
+    "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:

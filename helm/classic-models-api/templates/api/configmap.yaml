@@ -5,11 +5,6 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "classic-models-api.apiLabels" . | nindent 4 }}
-  annotations:
-    # Ordered (not deleted) like a hook so it exists before the migrate Job
-    # hook runs, while still persisting as a normal release resource.
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-1"
 data:
   DJANGO_SETTINGS_MODULE: "config.settings.production"
   DEBUG: {{ .Values.api.config.debug | quote }}
@@ -19,6 +14,12 @@ data:
   JWT_ISSUER: {{ .Values.api.config.jwtIssuer | quote }}
   JWT_AUDIENCE: {{ .Values.api.config.jwtAudience | quote }}
   JWT_LEEWAY_SECONDS: {{ .Values.api.config.jwtLeewaySeconds | quote }}
+  {{- if .Values.api.config.jwtJwkUrl }}
+  JWT_JWK_URL: {{ .Values.api.config.jwtJwkUrl | quote }}
+  {{- end }}
+  {{- if .Values.api.config.jwtRolesClaimPath }}
+  JWT_ROLES_CLAIM_PATH: {{ .Values.api.config.jwtRolesClaimPath | quote }}
+  {{- end }}
   MYSQL_HOST: "mysql"
   MYSQL_PORT: "3306"
   MYSQL_DATABASE: {{ .Values.mysql.database | quote }}

@@ -79,7 +79,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "authentication.api_key_auth.ApiKeyAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "authentication.oidc_auth.OIDCJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -162,7 +162,7 @@ SPECTACULAR_SETTINGS = {
     },
     "AUTHENTICATION_WHITELIST": [
         "authentication.api_key_auth.ApiKeyAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "authentication.oidc_auth.OIDCJWTAuthentication",
     ],
     "TAGS": [
         {"name": "Authentication", "description": "User authentication and management"},
@@ -197,18 +197,32 @@ JWT_PUBLIC_KEY_PEM = os.environ.get("JWT_PUBLIC_KEY_PEM") or _read_optional_file
 )
 JWT_KEY_ID = os.environ.get("JWT_KEY_ID")
 
+# When set, points at an external IdP's JWKS endpoint (e.g. Keycloak's
+# .../protocol/openid-connect/certs). Verification of incoming tokens then
+# uses this instead of VERIFYING_KEY, resolving the right key by `kid`.
+# Only affects verification of tokens presented to the API — the internal
+# login/refresh flow (authentication.jwt_tokens) still signs with
+# SIGNING_KEY below, for local/dev use or when no external IdP is wired up.
+JWT_JWK_URL = os.environ.get("JWT_JWK_URL") or None
+
+# Claim path (dot-separated) inside the token that carries role names, used
+# by authentication.oidc_auth to sync Django Groups. Default shape matches
+# Keycloak's realm_access.roles = ["role1", "role2", ...]; override for
+# other IdPs (e.g. a flat "roles" or "groups" claim).
+JWT_ROLES_CLAIM_PATH = os.environ.get("JWT_ROLES_CLAIM_PATH", "realm_access.roles")
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
-    "ALGORITHM": "RS256" if (JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM) else "HS256",
+    "ALGORITHM": "RS256" if (JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM) or JWT_JWK_URL else "HS256",
     "SIGNING_KEY": JWT_PRIVATE_KEY_PEM or SECRET_KEY,
     "VERIFYING_KEY": JWT_PUBLIC_KEY_PEM,
     "AUDIENCE": JWT_AUDIENCE,
     "ISSUER": JWT_ISSUER,
-    "JWK_URL": None,
+    "JWK_URL": JWT_JWK_URL,
     "LEEWAY": int(os.environ.get("JWT_LEEWAY_SECONDS", "0")),
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",

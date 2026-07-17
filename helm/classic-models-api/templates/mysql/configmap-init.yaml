@@ -5,9 +5,6 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     {{- include "classic-models-api.mysqlLabels" . | nindent 4 }}
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-1"
 data:
   01-init.sql: |
 {{ .Files.Get "files/01-init.sql" | indent 4 }}

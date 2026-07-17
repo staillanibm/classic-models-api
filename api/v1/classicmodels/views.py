@@ -1,11 +1,22 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
-from rest_framework import mixins, permissions, viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from config.throttles import ReadThrottle, WriteThrottle
+
+from authentication.permissions import (
+    CatalogPermission,
+    CustomerResourcePermission,
+    OrderdetailPermission,
+    OrderPermission,
+    PaymentPermission,
+    ReferenceDataPermission,
+    get_customer_number,
+    is_customer_role,
+)
 
 from classicmodels.models import (
     Customer,
@@ -33,7 +44,6 @@ from .serializers import (
 class BaseModelViewSet(viewsets.ModelViewSet):
     """Base viewset with appropriate throttling for read/write operations."""
 
-    permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [ReadThrottle, WriteThrottle]
 
 
@@ -76,6 +86,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
     ),
 )
 class ProductLineViewSet(BaseModelViewSet):
+    permission_classes = [CatalogPermission]
     queryset = ProductLine.objects.all()
     serializer_class = ProductLineSerializer
     lookup_field = "productline"
@@ -171,6 +182,7 @@ class ProductLineViewSet(BaseModelViewSet):
     ),
 )
 class ProductViewSet(BaseModelViewSet):
+    permission_classes = [CatalogPermission]
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     lookup_field = "productcode"
@@ -266,6 +278,7 @@ class ProductViewSet(BaseModelViewSet):
     ),
 )
 class OfficeViewSet(BaseModelViewSet):
+    permission_classes = [ReferenceDataPermission]
     queryset = Office.objects.all()
     serializer_class = OfficeSerializer
     lookup_field = "officecode"
@@ -361,6 +374,7 @@ class OfficeViewSet(BaseModelViewSet):
     ),
 )
 class EmployeeViewSet(BaseModelViewSet):
+    permission_classes = [ReferenceDataPermission]
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     lookup_field = "employeenumber"
@@ -506,10 +520,18 @@ class EmployeeViewSet(BaseModelViewSet):
     ),
 )
 class CustomerViewSet(BaseModelViewSet):
+    permission_classes = [CustomerResourcePermission]
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     lookup_field = "customernumber"
     lookup_url_kwarg = "customernumber"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if is_customer_role(user):
+            return queryset.filter(customernumber=get_customer_number(user))
+        return queryset
 
     @extend_schema(
         operation_id="get_customer_orders",
@@ -651,10 +673,18 @@ class CustomerViewSet(BaseModelViewSet):
     ),
 )
 class OrderViewSet(BaseModelViewSet):
+    permission_classes = [OrderPermission]
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     lookup_field = "ordernumber"
     lookup_url_kwarg = "ordernumber"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if is_customer_role(user):
+            return queryset.filter(customernumber=get_customer_number(user))
+        return queryset
 
     @extend_schema(
         operation_id="get_order_order_details",
@@ -817,16 +847,25 @@ class PaymentViewSet(
 ):
     queryset = Payment.objects.select_related("customernumber")
     serializer_class = PaymentSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [PaymentPermission]
     throttle_classes = [ReadThrottle, WriteThrottle]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if is_customer_role(user):
+            return queryset.filter(customernumber=get_customer_number(user))
+        return queryset
 
     def get_object(self):
         """Get object using composite key (customerNumber, checkNumber)."""
         customer_number = self.kwargs.get("customerNumber")
         check_number = self.kwargs.get("checkNumber")
-        return get_object_or_404(
+        obj = get_object_or_404(
             Payment, customernumber_id=customer_number, checknumber=check_number
         )
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -946,13 +985,22 @@ class OrderdetailViewSet(
 ):
     queryset = Orderdetail.objects.select_related("ordernumber", "productcode")
     serializer_class = OrderdetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [OrderdetailPermission]
     throttle_classes = [ReadThrottle, WriteThrottle]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if is_customer_role(user):
+            return queryset.filter(ordernumber__customernumber=get_customer_number(user))
+        return queryset
 
     def get_object(self):
         """Get object using composite key (orderNumber, productCode)."""
         order_number = self.kwargs.get("orderNumber")
         product_code = self.kwargs.get("productCode")
-        return get_object_or_404(
+        obj = get_object_or_404(
             Orderdetail, ordernumber_id=order_number, productcode_id=product_code
         )
+        self.check_object_permissions(self.request, obj)
+        return obj

@@ -30,7 +30,7 @@ They were auto-generated on first install and are preserved across
 To pin your own values instead, set them under `secrets:` in values.yaml
 before the first install.
 
-Database migrations run automatically as a pre-install/pre-upgrade Helm hook
+Database migrations run automatically as a post-install/post-upgrade Helm hook
 (templates/api/migrate-job.yaml) — no manual step needed, unlike the old
 plain-manifests flow under k8s/.
 
