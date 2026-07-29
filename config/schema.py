@@ -3,7 +3,7 @@ from drf_spectacular.plumbing import build_bearer_security_scheme_object
 
 
 class JWTAuthenticationExtension(OpenApiAuthenticationExtension):
-    target_class = "rest_framework_simplejwt.authentication.JWTAuthentication"
+    target_class = "authentication.oidc_auth.OIDCJWTAuthentication"
     name = "JWTAuth"
 
     def get_security_definition(self, auto_schema):

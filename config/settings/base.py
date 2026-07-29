@@ -77,6 +77,7 @@ ASGI_APPLICATION = "config.asgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.DefaultPagination",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "authentication.api_key_auth.ApiKeyAuthentication",
         "authentication.oidc_auth.OIDCJWTAuthentication",
