@@ -30,6 +30,17 @@ route:
   # Leave empty to let OpenShift assign a host, or pin one explicitly:
   host: "classic-models-api.apps.example.com"
 
+# On a cluster with Gateway API CRDs + an implementation installed — e.g.
+# Envoy Gateway, or OpenShift 4.14+'s native Gateway API support — use this
+# instead of (or alongside) `route`:
+# httpRoute:
+#   enabled: true
+#   hostnames:
+#     - "classic-models-api.example.com"
+#   gateway:
+#     name: "eg" # name of the existing Gateway resource
+#     namespace: "envoy-gateway-system" # empty = same namespace as this release
+
 mysql:
   storage:
     size: 10Gi

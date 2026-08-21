@@ -30,8 +30,17 @@ spec:
       restartPolicy: Never
       securityContext:
         runAsNonRoot: true
+        {{- if .Values.api.runAsUser }}
+        runAsUser: {{ .Values.api.runAsUser }}
+        {{- end }}
         seccompProfile:
           type: RuntimeDefault
+      {{- if .Values.api.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.api.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: migrate
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"

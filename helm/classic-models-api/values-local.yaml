@@ -1,0 +1,52 @@
+api:
+  image:
+    repository: ghcr.io/staillanibm/classic-models-api
+    tag: v1.0.0
+    pullPolicy: Always
+  # Secret created manually (not tracked in git):
+  #   kubectl create secret docker-registry ghcr-pull-secret \
+  #     --docker-server=ghcr.io --docker-username=staillanibm --docker-password=<token> \
+  #     -n classic-models
+  imagePullSecrets:
+    - ghcr-pull-secret
+  # Image has no USER directive (defaults to root) and this cluster has no
+  # OpenShift-style SCC to assign a non-root UID automatically.
+  runAsUser: 1000
+  replicas: 2
+  config:
+    # "*" (not just the external hostname): kubelet probes hit the pod via
+    # its IP, not via classic-models-api.sttlab.local, and would otherwise
+    # get rejected with 400 DisallowedHost.
+    allowedHosts: "*"
+    jwtIssuer: "https://keycloak.sttlab.eu/realms/sttlab"
+    jwtAudience: "classic-models-api"
+    jwtJwkUrl: "https://keycloak.sttlab.eu/realms/sttlab/protocol/openid-connect/certs"
+
+route:
+  enabled: false
+
+httpRoute:
+  enabled: true
+  hostnames:
+    - "classic-models-api.sttlab.local"
+  gateway:
+    name: "envoy-gateway" 
+    namespace: "envoy-gateway-system" 
+    sectionName: "https"
+
+mysql:
+  image:
+    # registry.redhat.io/rhel8/mysql-80 requires Red Hat registry credentials
+    # this cluster doesn't have. quay.io/sclorg/mysql-80-c9s is the same
+    # upstream S2I MySQL container (github.com/sclorg/mysql-container),
+    # built on CentOS Stream instead of RHEL/UBI, publicly pullable, and
+    # behaves identically (init script layout, non-root support, etc.) —
+    # unlike Docker Hub's mysql:8.0, which uses a completely different
+    # image convention and would break this chart's init flow.
+    repository: quay.io/sclorg/mysql-80-c9s
+    tag: latest
+    pullPolicy: IfNotPresent
+  storage:
+    size: 1Gi
+    storageClassName: "local-path"
+

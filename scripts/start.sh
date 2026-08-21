@@ -14,7 +14,7 @@ GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
 GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-30}
 
 echo "Starting gunicorn..."
-exec gunicorn config.wsgi:application \
+exec opentelemetry-instrument gunicorn config.wsgi:application \
   --bind 0.0.0.0:8000 \
   --workers "${GUNICORN_WORKERS}" \
   --timeout "${GUNICORN_TIMEOUT}" \

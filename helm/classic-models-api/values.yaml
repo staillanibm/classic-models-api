@@ -5,6 +5,19 @@ api:
     repository: image-registry.openshift-image-registry.svc:5000/classic-models/classic-models-api
     tag: latest
     pullPolicy: Always
+  # Names of pre-existing `kubernetes.io/dockerconfigjson` Secrets in this
+  # release's namespace, for pulling api.image from a private registry.
+  # The chart does not create these secrets — create them yourself, e.g.:
+  #   kubectl create secret docker-registry ghcr-pull-secret \
+  #     --docker-server=ghcr.io --docker-username=<user> --docker-password=<token> \
+  #     -n <namespace>
+  imagePullSecrets: []
+  # Set to run containers as a fixed non-root UID, for clusters without a
+  # mechanism that assigns one automatically (unlike OpenShift's
+  # restricted-v2 SCC, which injects a namespace-scoped UID at admission —
+  # the image itself has no USER directive and defaults to root). Leave
+  # empty on OpenShift.
+  runAsUser: ""
   replicas: 2
   gunicorn:
     workers: 3
@@ -39,6 +52,25 @@ api:
 route:
   enabled: true
   host: "" # leave empty to let OpenShift assign one
+
+# Gateway API HTTPRoute, for clusters with the Gateway API CRDs and an
+# implementation installed — e.g. Envoy Gateway, or OpenShift 4.14+'s native
+# Gateway API support. Requires a Gateway resource to already exist on the
+# cluster — this chart does not create the Gateway itself. Independent of
+# `route` above: enable either, both, or neither depending on what the
+# target cluster supports.
+httpRoute:
+  enabled: false
+  # Hostnames the route answers for. Leave empty to inherit the Gateway
+  # listener's hostname (if any).
+  hostnames: []
+  # gateway.name: gateway.example.com
+  gateway:
+    name: ""
+    namespace: "" # empty = same namespace as this release
+    sectionName: "" # optional: target a specific listener on the Gateway
+  path: /
+  pathType: PathPrefix
 
 mysql:
   image:

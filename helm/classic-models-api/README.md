@@ -11,6 +11,13 @@ the plain manifests under `k8s/`, kept there as a reference/fallback.
   Service, Route, a `pre-install`/`pre-upgrade` hook Job that runs
   `manage.py migrate` exactly once before any replica starts (avoids multiple
   pods racing to apply migrations concurrently).
+- Ingress is exposed either via an OpenShift `Route` (`route.enabled`,
+  default) or a Gateway API `HTTPRoute` (`httpRoute.enabled`, default off),
+  for any cluster with the Gateway API CRDs and an implementation installed —
+  e.g. Envoy Gateway, or OpenShift 4.14+'s native Gateway API support. Both
+  can be enabled at once; the chart never creates the Gateway resource
+  itself — see `httpRoute.gateway` in `values.yaml` and
+  `values-example.yaml`.
 - MySQL: Secret, PVC (kept across `helm uninstall`, see
   `helm.sh/resource-policy: keep`), init-SQL ConfigMap (loads
   `files/01-init.sql` via a small `.sh` loader script — the `rhel8/mysql-80`

@@ -18,7 +18,22 @@ API docs (Swagger UI):
 {{- else }}
 
 route.enabled is false: no Route was created. Use `oc port-forward` or your own
-Ingress in front of the "classic-models-api" Service (port 8000) to reach the API.
+Ingress/HTTPRoute in front of the "classic-models-api" Service (port 8000) to
+reach the API.
+{{- end }}
+
+{{- if .Values.httpRoute.enabled }}
+
+HTTPRoute (Gateway API):
+  Attached to Gateway "{{ .Values.httpRoute.gateway.name }}"{{ if .Values.httpRoute.gateway.namespace }} in namespace "{{ .Values.httpRoute.gateway.namespace }}"{{ end }}.
+{{- if .Values.httpRoute.hostnames }}
+{{- range .Values.httpRoute.hostnames }}
+  http://{{ . }}{{ $.Values.httpRoute.path }}
+{{- end }}
+{{- else }}
+  No hostnames set: inherits whatever hostname(s) the Gateway listener defines.
+{{- end }}
+  Run: kubectl get httproute classic-models-api -n {{ .Values.namespace }}
 {{- end }}
 
 Generated secrets (SECRET_KEY, API_KEY, MySQL passwords) live in:

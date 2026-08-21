@@ -13,6 +13,8 @@ claim (JWT_ROLES_CLAIM_PATH) on every request.
 
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -25,6 +27,8 @@ from .jwt_tokens import CustomAccessToken
 from .models import ExternalIdentity
 
 User = get_user_model()
+
+logger = logging.getLogger("authentication.oidc")
 
 
 class ExternalOrInternalAccessToken(CustomAccessToken):
@@ -98,6 +102,10 @@ class OIDCJWTAuthentication(JWTAuthentication):
                     email=validated_token.get("email", "") or "",
                 )
                 identity = ExternalIdentity.objects.create(user=user, sub=sub)
+                logger.info(
+                    "JIT user provisioned",
+                    extra={"sub": sub, "username": user.username},
+                )
             user = identity.user
 
             # Keep the displayed username in sync with the IdP in case it
@@ -141,3 +149,11 @@ class OIDCJWTAuthentication(JWTAuthentication):
 
         groups = list(Group.objects.filter(name__in=role_names))
         user.groups.set(groups)
+        logger.info(
+            "Roles synced from IdP token",
+            extra={
+                "username": user.username,
+                "roles_before": sorted(current),
+                "roles_after": sorted(role_names),
+            },
+        )

@@ -25,8 +25,17 @@ spec:
       # namespace-scoped arbitrary UID/GID automatically at admission time.
       securityContext:
         runAsNonRoot: true
+        {{- if .Values.api.runAsUser }}
+        runAsUser: {{ .Values.api.runAsUser }}
+        {{- end }}
         seccompProfile:
           type: RuntimeDefault
+      {{- if .Values.api.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.api.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: classic-models-api
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"

@@ -8,11 +8,30 @@ customer, support. A user's effective role set is their group memberships;
 
 from __future__ import annotations
 
+import logging
+
 from rest_framework import permissions
 
 from classicmodels.models import Customer, Order
 
 SAFE_METHODS = permissions.SAFE_METHODS
+
+logger = logging.getLogger("authentication.rbac")
+
+
+def _log_denied(request, view, reason: str) -> None:
+    user = request.user
+    logger.warning(
+        "RBAC denied",
+        extra={
+            "username": getattr(user, "username", None),
+            "roles": sorted(user.groups.values_list("name", flat=True)) if user.is_authenticated else [],
+            "method": request.method,
+            "path": request.path,
+            "view": view.__class__.__name__,
+            "reason": reason,
+        },
+    )
 
 
 def _in_group(user, name: str) -> bool:
@@ -57,15 +76,22 @@ class RolePermission(permissions.BasePermission):
             return False
         if is_admin(user):
             return True
-        return self.check(user, request.method)
+        allowed = self.check(user, request.method)
+        if not allowed:
+            _log_denied(request, view, "role check denied")
+        return allowed
 
     def has_object_permission(self, request, view, obj):
         user = request.user
         if is_admin(user):
             return True
         if not self.check(user, request.method):
+            _log_denied(request, view, "role check denied")
             return False
-        return self.owns_object(user, obj)
+        allowed = self.owns_object(user, obj)
+        if not allowed:
+            _log_denied(request, view, "ownership check denied")
+        return allowed
 
     def check(self, user, method: str) -> bool:  # pragma: no cover - abstract
         raise NotImplementedError
@@ -127,6 +153,13 @@ class OrderPermission(RolePermission):
         return False
 
     def has_object_permission(self, request, view, obj: Order):
+        allowed = self._check_object(request, obj)
+        if not allowed:
+            _log_denied(request, view, "order ownership/scope check denied")
+        return allowed
+
+    @staticmethod
+    def _check_object(request, obj: Order) -> bool:
         user = request.user
         if is_admin(user):
             return True
@@ -161,6 +194,13 @@ class OrderScopedPermission(RolePermission):
 
 class PaymentPermission(OrderScopedPermission):
     def has_object_permission(self, request, view, obj):
+        allowed = self._check_object(request, obj)
+        if not allowed:
+            _log_denied(request, view, "payment ownership/scope check denied")
+        return allowed
+
+    @staticmethod
+    def _check_object(request, obj) -> bool:
         user = request.user
         if is_admin(user):
             return True
@@ -175,6 +215,13 @@ class PaymentPermission(OrderScopedPermission):
 
 class OrderdetailPermission(OrderScopedPermission):
     def has_object_permission(self, request, view, obj):
+        allowed = self._check_object(request, obj)
+        if not allowed:
+            _log_denied(request, view, "orderdetail ownership/scope check denied")
+        return allowed
+
+    @staticmethod
+    def _check_object(request, obj) -> bool:
         user = request.user
         if is_admin(user):
             return True
