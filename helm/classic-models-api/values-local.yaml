@@ -1,7 +1,7 @@
 api:
   image:
     repository: ghcr.io/staillanibm/classic-models-api
-    tag: v1.0.0
+    tag: v1.0.1
     pullPolicy: Always
   # Secret created manually (not tracked in git):
   #   kubectl create secret docker-registry ghcr-pull-secret \
@@ -18,9 +18,12 @@ api:
     # its IP, not via classic-models-api.sttlab.local, and would otherwise
     # get rejected with 400 DisallowedHost.
     allowedHosts: "*"
-    jwtIssuer: "https://keycloak.sttlab.eu/realms/sttlab"
+    jwtIssuer: "https://keycloak.sttlab.local/realms/classic-models"
     jwtAudience: "classic-models-api"
-    jwtJwkUrl: "https://keycloak.sttlab.eu/realms/sttlab/protocol/openid-connect/certs"
+    jwtJwkUrl: "https://keycloak.sttlab.local/realms/classic-models/protocol/openid-connect/certs"
+  otel:
+    enabled: true
+    endpoint: "http://jaeger.observability.svc.cluster.local:4318"
 
 route:
   enabled: false

@@ -25,3 +25,11 @@ data:
   MYSQL_DATABASE: {{ .Values.mysql.database | quote }}
   GUNICORN_WORKERS: {{ .Values.api.gunicorn.workers | quote }}
   GUNICORN_TIMEOUT: {{ .Values.api.gunicorn.timeout | quote }}
+  {{- if .Values.api.otel.enabled }}
+  OTEL_SERVICE_NAME: {{ .Values.api.otel.serviceName | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.api.otel.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.api.otel.protocol | quote }}
+  OTEL_TRACES_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "none"
+  OTEL_LOGS_EXPORTER: "none"
+  {{- end }}

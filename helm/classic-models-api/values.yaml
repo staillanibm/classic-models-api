@@ -48,6 +48,11 @@ api:
   # Set to enforce HTTPS-only redirects (only if fronted by a proxy that
   # forwards X-Forwarded-Proto for probe traffic too — see config/settings/production.py).
   secureSslRedirect: false
+  otel:
+    enabled: false
+    serviceName: "classic-models-api"
+    endpoint: ""
+    protocol: "http/protobuf"
 
 route:
   enabled: true
