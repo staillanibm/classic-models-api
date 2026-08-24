@@ -38,12 +38,17 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
+    "django_prometheus",
     # Project apps
     "classicmodels",
     "authentication",
 ]
 
+# django-prometheus measures latency between its Before and After middleware,
+# so the pair has to bracket the WHOLE stack for the observed durations to
+# match actual end-to-end request handling time.
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -52,6 +57,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "config.middleware.SleepDelayMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -239,9 +245,21 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
 
+# prometheus_client switches to multiprocess mode as soon as
+# PROMETHEUS_MULTIPROC_DIR is PRESENT in the environment (it tests for the key,
+# not its value) and fails outright if the directory doesn't exist. Settings are
+# the only place every entrypoint goes through — gunicorn, manage.py migrate,
+# shell — so the directory has to be created here rather than in the gunicorn
+# hook alone, otherwise the migrate Job dies on its first DB access.
+_PROMETHEUS_MULTIPROC_DIR = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+if _PROMETHEUS_MULTIPROC_DIR:
+    os.makedirs(_PROMETHEUS_MULTIPROC_DIR, exist_ok=True)
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        # django-prometheus wrapper around the stock MySQL backend: adds
+        # connection/error counters and query latency histograms.
+        "ENGINE": "django_prometheus.db.backends.mysql",
         "NAME": os.environ.get("MYSQL_DATABASE", "classicmodels"),
         "USER": os.environ.get("MYSQL_USER", "classicuser"),
         "PASSWORD": os.environ.get("MYSQL_PASSWORD", "classicpass"),
@@ -265,7 +283,15 @@ LOGGING = {
     "formatters": {
         "json": {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-            "format": "%(asctime)s %(levelname)s %(name)s %(message)s",
+            # otelTraceID/otelSpanID are injected into every LogRecord by the
+            # OTel instrumentation when OTEL_PYTHON_LOG_CORRELATION=true.
+            # pythonjsonlogger only emits the fields named here, hence listing
+            # them explicitly: this is what lets Grafana jump from a Loki log
+            # line to the matching Tempo trace.
+            "format": (
+                "%(asctime)s %(levelname)s %(name)s %(message)s "
+                "%(otelTraceID)s %(otelSpanID)s"
+            ),
         },
     },
     "handlers": {

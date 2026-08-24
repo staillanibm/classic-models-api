@@ -14,7 +14,10 @@ GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
 GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-30}
 
 echo "Starting gunicorn..."
+# -c config/gunicorn.py: hooks that aggregate Prometheus metrics across
+# workers (see the module for the multiprocess details).
 exec opentelemetry-instrument gunicorn config.wsgi:application \
+  -c config/gunicorn.py \
   --bind 0.0.0.0:8000 \
   --workers "${GUNICORN_WORKERS}" \
   --timeout "${GUNICORN_TIMEOUT}" \

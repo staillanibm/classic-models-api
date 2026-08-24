@@ -54,6 +54,18 @@ api:
     endpoint: ""
     protocol: "http/protobuf"
 
+  # django-prometheus /metrics endpoint, scraped directly on the pod.
+  # `multiprocDir` must point at a writable path (the rootfs is read-only):
+  # /tmp is already mounted as an emptyDir.
+  metrics:
+    enabled: false
+    port: 8000
+    path: "/metrics"
+    multiprocDir: "/tmp/prometheus"
+    # Neutralises /metrics from the outside: the HTTPRoute matches "/" as a
+    # PathPrefix, so without this rule the endpoint would be public.
+    blockExternal: true
+
 route:
   enabled: true
   host: "" # leave empty to let OpenShift assign one

@@ -25,11 +25,18 @@ data:
   MYSQL_DATABASE: {{ .Values.mysql.database | quote }}
   GUNICORN_WORKERS: {{ .Values.api.gunicorn.workers | quote }}
   GUNICORN_TIMEOUT: {{ .Values.api.gunicorn.timeout | quote }}
+  {{- if .Values.api.metrics.enabled }}
+  PROMETHEUS_MULTIPROC_DIR: {{ .Values.api.metrics.multiprocDir | quote }}
+  {{- end }}
   {{- if .Values.api.otel.enabled }}
   OTEL_SERVICE_NAME: {{ .Values.api.otel.serviceName | quote }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.api.otel.endpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.api.otel.protocol | quote }}
   OTEL_TRACES_EXPORTER: "otlp"
+  # Injects otelTraceID/otelSpanID into Python LogRecords: this is what feeds
+  # the Loki datasource's TraceID derived field (log -> trace). Does not cover
+  # gunicorn access logs, which have their own formatting.
+  OTEL_PYTHON_LOG_CORRELATION: "true"
   OTEL_METRICS_EXPORTER: "none"
   OTEL_LOGS_EXPORTER: "none"
   {{- end }}

@@ -33,4 +33,7 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema", permission_classes=[AllowAny]),
         name="redoc",
     ),
+    # /metrics, outside the /classic-models prefix: scraped directly on the pod
+    # by Prometheus. The chart's HTTPRoute neutralises it from the outside.
+    path("", include("django_prometheus.urls")),
 ]

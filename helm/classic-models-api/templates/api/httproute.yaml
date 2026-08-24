@@ -20,6 +20,23 @@ spec:
     {{- toYaml .Values.httpRoute.hostnames | nindent 4 }}
   {{- end }}
   rules:
+    {{- if and .Values.api.metrics.enabled .Values.api.metrics.blockExternal }}
+    # Most specific rule first: Gateway API gives an Exact match priority over
+    # the "/" PathPrefix. This redirects /metrics away instead of proxying it,
+    # so the endpoint stays reachable in-cluster (Prometheus scrapes the pod IP
+    # directly, bypassing the gateway) but not from the outside.
+    - matches:
+        - path:
+            type: Exact
+            value: {{ .Values.api.metrics.path | quote }}
+      filters:
+        - type: RequestRedirect
+          requestRedirect:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: /classic-models/health/
+            statusCode: 302
+    {{- end }}
     - matches:
         - path:
             type: {{ .Values.httpRoute.pathType }}

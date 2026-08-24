@@ -1,7 +1,9 @@
 api:
   image:
     repository: ghcr.io/staillanibm/classic-models-api
-    tag: v1.0.1
+    # v1.0.2: adds django-prometheus (/metrics endpoint) and log -> trace
+    # correlation. Published by docker-build.yml on pushing the v1.0.2 git tag.
+    tag: v1.0.2
     pullPolicy: Always
   # Secret created manually (not tracked in git):
   #   kubectl create secret docker-registry ghcr-pull-secret \
@@ -23,7 +25,9 @@ api:
     jwtJwkUrl: "https://keycloak.sttlab.local/realms/classic-models/protocol/openid-connect/certs"
   otel:
     enabled: true
-    endpoint: "http://jaeger.observability.svc.cluster.local:4318"
+    endpoint: "http://tempo.observability.svc.cluster.local:4318"
+  metrics:
+    enabled: true
 
 route:
   enabled: false

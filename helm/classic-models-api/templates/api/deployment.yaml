@@ -20,6 +20,11 @@ spec:
         # image tag itself doesn't (floating :latest on the internal ImageStream).
         checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/api/secret.yaml") . | sha256sum }}
+        {{- if .Values.api.metrics.enabled }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.api.metrics.port | quote }}
+        prometheus.io/path: {{ .Values.api.metrics.path | quote }}
+        {{- end }}
     spec:
       # No fsGroup/runAsUser pinned: OCP's restricted-v2 SCC assigns a
       # namespace-scoped arbitrary UID/GID automatically at admission time.
