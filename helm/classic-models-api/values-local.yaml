@@ -1,9 +1,9 @@
 api:
   image:
     repository: ghcr.io/staillanibm/classic-models-api
-    # v1.0.2: adds django-prometheus (/metrics endpoint) and log -> trace
-    # correlation. Published by docker-build.yml on pushing the v1.0.2 git tag.
-    tag: v1.0.2
+    # v1.0.3: logs the inbound traceparent in the gunicorn access line, so a
+    # span in Grafana resolves to the access line it produced.
+    tag: v1.0.3
     pullPolicy: Always
   # Secret created manually (not tracked in git):
   #   kubectl create secret docker-registry ghcr-pull-secret \
