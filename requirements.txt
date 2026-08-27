@@ -13,6 +13,12 @@ python-json-logger==2.0.7
 opentelemetry-distro==0.48b0
 opentelemetry-exporter-otlp-proto-http==1.27.0
 opentelemetry-instrumentation-django==0.48b0
+# Injects otelTraceID/otelSpanID onto every LogRecord when
+# OTEL_PYTHON_LOG_CORRELATION=true. Without it that env var is inert, the
+# stock LogRecordFactory stays in place, and the JSON formatter in
+# config/settings/base.py emits "otelTraceID": null on every line — which
+# is what broke the Loki-to-Tempo jump.
+opentelemetry-instrumentation-logging==0.48b0
 opentelemetry-instrumentation-mysqlclient==0.48b0
 django-prometheus==2.5.0
 
