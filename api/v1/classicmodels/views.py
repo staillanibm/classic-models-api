@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -6,6 +7,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from config.throttles import ReadThrottle, WriteThrottle
+from events import emit
+from events.stock import commit_stock
 
 from authentication.permissions import (
     CatalogPermission,
@@ -237,6 +240,38 @@ class ProductViewSet(BaseModelViewSet):
 
         serializer = OrderdetailSerializer(order_details, many=True)
         return Response(serializer.data)
+
+    # --- events -------------------------------------------------------------
+    #
+    # Emitted where the meaning is known, not from a generic hook: a PATCH that
+    # moves the price and the stock is two facts, and a consumer subscribes to a
+    # fact rather than to an HTTP request.
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        product = serializer.save()
+        emit.product_created(product)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        before = self.get_object()
+        was_stock = before.quantityinstock
+        was_price = {"buyprice": str(before.buyprice), "msrp": str(before.msrp)}
+
+        product = serializer.save()
+
+        if product.quantityinstock != was_stock:
+            emit.product_stock_changed(
+                product,
+                before=was_stock,
+                after=product.quantityinstock,
+                # Not demand: somebody corrected the figure. A reorder decision
+                # should weigh the two differently.
+                reason="manual-adjustment",
+            )
+        now_price = {"buyprice": str(product.buyprice), "msrp": str(product.msrp)}
+        if now_price != was_price:
+            emit.product_price_changed(product, before=was_price, after=now_price)
 
 
 @extend_schema_view(
@@ -735,6 +770,20 @@ class OrderViewSet(BaseModelViewSet):
         serializer = OrderdetailSerializer(order_details, many=True)
         return Response(serializer.data)
 
+    # --- events -------------------------------------------------------------
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        order = serializer.save()
+        emit.order_created(order)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        was_status = self.get_object().status
+        order = serializer.save()
+        if order.status != was_status:
+            emit.order_status_changed(order, before=was_status, after=order.status)
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -872,6 +921,13 @@ class PaymentViewSet(
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+    # --- events -------------------------------------------------------------
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        payment = serializer.save()
+        emit.payment_recorded(payment)
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -1004,3 +1060,22 @@ class OrderdetailViewSet(
         )
         self.check_object_permissions(self.request, obj)
         return obj
+
+    # --- stock, and the event that says it moved ----------------------------
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        """Commit stock, then write the line — one transaction, in that order.
+
+        Stock first because it is the step that can refuse. Taking it after the
+        line was written would mean rolling back a line that had already been
+        given an id, and a refusal that leaves a gap in a sequence is something
+        somebody eventually reads as data loss.
+        """
+        line = serializer.validated_data
+        commit_stock(
+            productcode=line["productcode"].pk,
+            quantity=line["quantityordered"],
+            ordernumber=line["ordernumber"].pk,
+        )
+        serializer.save()

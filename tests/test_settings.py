@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     # Local apps
     "classicmodels",
     "authentication",
+    "events",
     "api.v1",
 ]
 

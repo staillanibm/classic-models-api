@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Project apps
     "classicmodels",
     "authentication",
+    "events",
 ]
 
 # django-prometheus measures latency between its Before and After middleware,
@@ -308,3 +309,15 @@ LOGGING = {
         },
     },
 }
+
+
+# --- Kafka ------------------------------------------------------------------
+#
+# Used only by the outbox relay (`manage.py publish_outbox`), never by the API
+# processes: a request writes to the outbox and returns, and nothing on the
+# request path waits for a broker.
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka-kafka-bootstrap.kafka.svc.cluster.local:9093")
+KAFKA_USERNAME = os.getenv("KAFKA_USERNAME", "classic-models-api")
+KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD", "")
+KAFKA_CA_LOCATION = os.getenv("KAFKA_CA_LOCATION", "/etc/kafka-ca/ca.crt")
+
