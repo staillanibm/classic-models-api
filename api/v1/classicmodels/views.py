@@ -1,3 +1,5 @@
+import re
+
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
@@ -256,6 +258,13 @@ class ProductViewSet(BaseModelViewSet):
         product = serializer.save()
         emit.product_created(product)
 
+    #: A caller may say *why* stock moved, not just that it did — but only in the
+    #: one shape a reorder decision already knows how to weigh: a delivery
+    #: against a specific request. Anything else falls back to the honest
+    #: default: someone corrected the figure, not the demand signal an order
+    #: line or a delivery is.
+    _DELIVERY_REASON = re.compile(r"^delivery:[\w-]{1,64}$")
+
     @transaction.atomic
     def perform_update(self, serializer):
         before = self.get_object()
@@ -265,13 +274,13 @@ class ProductViewSet(BaseModelViewSet):
         product = serializer.save()
 
         if product.quantityinstock != was_stock:
+            claimed = self.request.headers.get("X-Stock-Change-Reason", "")
+            reason = claimed if self._DELIVERY_REASON.match(claimed) else "manual-adjustment"
             emit.product_stock_changed(
                 product,
                 before=was_stock,
                 after=product.quantityinstock,
-                # Not demand: somebody corrected the figure. A reorder decision
-                # should weigh the two differently.
-                reason="manual-adjustment",
+                reason=reason,
             )
         now_price = {"buyprice": str(product.buyprice), "msrp": str(product.msrp)}
         if now_price != was_price:

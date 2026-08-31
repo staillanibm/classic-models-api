@@ -58,6 +58,13 @@ def is_support(user) -> bool:
     return _in_group(user, "support")
 
 
+def is_restocker(user) -> bool:
+    """A machine identity that fulfils reorders. Deliberately narrow: it can
+    move stock (see CatalogPermission), and nothing else — no other write
+    permission checks this role."""
+    return _in_group(user, "restocker")
+
+
 def get_customer_number(user) -> int | None:
     profile = getattr(user, "customer_profile", None)
     return profile.customernumber if profile else None
@@ -101,11 +108,17 @@ class RolePermission(permissions.BasePermission):
 
 
 class CatalogPermission(RolePermission):
-    """ProductLine/Product: RW for admin/product_manager, read-only otherwise."""
+    """ProductLine/Product: RW for admin/product_manager, read-only otherwise.
+
+    One exception, deliberately narrow: `restocker` may PATCH — never POST,
+    PUT or DELETE — so a stock-fulfilment identity can move a number without
+    gaining any of product_manager's other authority."""
 
     def check(self, user, method):
         if method in SAFE_METHODS:
             return is_read_only_role(user) or is_product_manager(user) or is_customer_role(user) or is_support(user)
+        if method == "PATCH" and is_restocker(user):
+            return True
         return is_product_manager(user)
 
 
