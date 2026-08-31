@@ -185,6 +185,10 @@ class ProductLineViewSet(BaseModelViewSet):
     ),
 )
 class ProductViewSet(BaseModelViewSet):
+
+    # A reorder decision starts from a product line or a vendor; without
+    # this a caller pages the whole catalog to find them.
+    filterset_fields = ["productline", "productvendor", "productscale"]
     permission_classes = [CatalogPermission]
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -409,6 +413,8 @@ class OfficeViewSet(BaseModelViewSet):
     ),
 )
 class EmployeeViewSet(BaseModelViewSet):
+
+    filterset_fields = ["officecode", "jobtitle", "reportsto"]
     permission_classes = [ReferenceDataPermission]
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
@@ -555,6 +561,10 @@ class EmployeeViewSet(BaseModelViewSet):
     ),
 )
 class CustomerViewSet(BaseModelViewSet):
+
+    # Territory scoping reads through the sales rep; the rest is how a
+    # support call actually starts.
+    filterset_fields = ["country", "city", "salesrepemployeenumber"]
     permission_classes = [CustomerResourcePermission]
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
@@ -708,6 +718,11 @@ class CustomerViewSet(BaseModelViewSet):
     ),
 )
 class OrderViewSet(BaseModelViewSet):
+
+    # `status` is the one that matters: an order that is Shipped or
+    # Cancelled commits nothing, and telling those apart is what makes a
+    # promise about availability honest.
+    filterset_fields = ["status", "customernumber", "orderdate", "shippeddate"]
     permission_classes = [OrderPermission]
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
@@ -894,6 +909,10 @@ class PaymentViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
+
+    # A collections agent asks about one customer, not about every payment
+    # ever made.
+    filterset_fields = ["customernumber", "paymentdate"]
     queryset = Payment.objects.select_related("customernumber")
     serializer_class = PaymentSerializer
     permission_classes = [PaymentPermission]
@@ -1039,6 +1058,12 @@ class OrderdetailViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
+
+    # The pair this backend was wired for. `productcode` answers "what is
+    # committed on this reference", and `ordernumber__status` restricts it
+    # to orders still open — without the second, the answer counts every
+    # line ever shipped.
+    filterset_fields = ["productcode", "ordernumber", "ordernumber__status"]
     queryset = Orderdetail.objects.select_related("ordernumber", "productcode")
     serializer_class = OrderdetailSerializer
     permission_classes = [OrderdetailPermission]

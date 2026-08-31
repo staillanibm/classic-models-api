@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "django_prometheus",
+    "django_filters",
     # Project apps
     "classicmodels",
     "authentication",
@@ -84,6 +85,12 @@ ASGI_APPLICATION = "config.asgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Inert until a viewset declares filterset_fields, so enabling it globally
+    # changes no endpoint that has not asked for it. It is here rather than on
+    # each viewset because the alternative — a caller paging a whole table to
+    # find the rows it wants — is the expensive failure this exists to prevent,
+    # and that applies everywhere.
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_PAGINATION_CLASS": "config.pagination.DefaultPagination",
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "authentication.api_key_auth.ApiKeyAuthentication",
