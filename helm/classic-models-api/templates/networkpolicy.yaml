@@ -34,8 +34,16 @@ spec:
   ingress:
     - from:
         - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: classic-models-api
+            matchExpressions:
+              # The relay reads the outbox from the same database, under its own
+              # name. Selecting on the exact API label alone would have left it
+              # unable to reach MySQL, and a NetworkPolicy denies silently — it
+              # would have looked like a database that never answers.
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - classic-models-api
+                  - classic-models-api-outbox-relay
       ports:
         - protocol: TCP
           port: 3306

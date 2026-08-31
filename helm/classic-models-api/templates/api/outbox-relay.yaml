@@ -1,0 +1,105 @@
+{{- if .Values.kafka.enabled }}
+# The outbox relay: reads what the API committed and publishes it to Kafka.
+#
+# A separate Deployment, not a thread inside gunicorn. A relay that dies must not
+# take the API with it, an API restart must not interrupt a publish mid-batch,
+# and nothing on the request path should ever wait for a broker.
+#
+# One replica. Two would both read the same unpublished rows and publish them
+# twice — harmless for an at-least-once consumer, wasteful for everyone else.
+# Sharding the outbox is the answer if this ever needs to scale, not replicas.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: classic-models-api-outbox-relay
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "classic-models-api.apiLabels" . | nindent 4 }}
+    app.kubernetes.io/component: outbox-relay
+spec:
+  replicas: 1
+  strategy:
+    # Never two relays at once, for the reason above.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: classic-models-api-outbox-relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: classic-models-api-outbox-relay
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        {{- if .Values.api.runAsUser }}
+        runAsUser: {{ .Values.api.runAsUser }}
+        {{- end }}
+        seccompProfile:
+          type: RuntimeDefault
+      {{- if .Values.api.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.api.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: relay
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: ["python", "manage.py", "publish_outbox"]
+          envFrom:
+            - configMapRef:
+                name: classic-models-api-config
+            - secretRef:
+                name: classic-models-api-secrets
+          env:
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: MYSQL_PASSWORD
+            - name: KAFKA_BOOTSTRAP
+              value: {{ .Values.kafka.bootstrap | quote }}
+            - name: KAFKA_USERNAME
+              value: {{ .Values.kafka.username | quote }}
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.kafka.credentialsSecret }}
+                  key: password
+            - name: KAFKA_CA_LOCATION
+              value: /etc/kafka-ca/ca.crt
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: kafka-ca
+              mountPath: /etc/kafka-ca
+              readOnly: true
+          resources:
+            {{- toYaml .Values.kafka.relayResources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: kafka-ca
+          secret:
+            # Same secret as the password: External Secrets puts Strimzi's
+            # cluster CA there beside it, so the relay verifies the broker
+            # rather than trusting whatever answers on that address.
+            secretName: {{ .Values.kafka.credentialsSecret }}
+            items:
+              - key: ca.crt
+                path: ca.crt
+{{- end }}

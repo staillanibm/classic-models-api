@@ -117,3 +117,27 @@ secrets:
   mysqlPassword: ""
   jwtPrivateKeyPem: ""
   jwtPublicKeyPem: ""
+
+# --- Kafka -------------------------------------------------------------------
+#
+# Only the outbox relay uses these. The API processes never talk to a broker: a
+# request writes to the outbox and returns.
+kafka:
+  enabled: false
+  bootstrap: kafka-kafka-bootstrap.kafka.svc.cluster.local:9093
+  username: classic-models-api
+  # Where the SCRAM password and the cluster CA are read from: a
+  # ClusterSecretStore that reaches into the Kafka operator's namespace.
+  secretStore: kafka-credentials
+  # The KafkaUser's own secret, and the cluster CA, at the source.
+  caSecret: kafka-cluster-ca-cert
+  # The copy this namespace mounts. Created by the ExternalSecret above.
+  credentialsSecret: classic-models-api-kafka
+  relayResources:
+    requests:
+      cpu: 20m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
