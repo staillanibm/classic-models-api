@@ -166,6 +166,18 @@ erDiagram
     PRODUCTS ||--o{ ORDERDETAILS : "included in"
 ```
 
+## 📣 Domain Events
+
+The API publishes what it did — a stock movement, an order, a payment — as
+CloudEvents on Kafka, through a transactional outbox. Consumers depend on that
+shape, so it is written down: **[docs/DOMAIN_EVENTS.md](docs/DOMAIN_EVENTS.md)**
+carries the envelope, the six event types with their payloads, the ordering and
+delivery guarantees, and how to operate the relay.
+
+One contract change came with it: creating an order line now decrements stock
+and **refuses** a line that exceeds what is on hand, rather than letting stock
+go negative.
+
 ## 🔌 API Structure
 
 ### Authentication
