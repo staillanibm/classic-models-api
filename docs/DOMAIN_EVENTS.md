@@ -89,6 +89,13 @@ product. `subject` is the product code.
 correction. **Consumers should treat them differently**: demand says something
 about the future, a correction says someone fixed the books.
 
+A third value: `delivery:<reorder-id>`, when a fulfilled reorder increases
+stock. It is only accepted from a caller holding the narrow `restocker` role
+(a `PATCH` sending `X-Stock-Change-Reason: delivery:<id>`, checked against
+`^delivery:[\w-]{1,64}$`); anything else — a role without the header, or a
+value not in that shape — falls back to `manual-adjustment`. See
+`classic-models.procurement` below.
+
 ### `product.price_changed.v1` → `classic-models.catalog`
 
 Raised by an update that changes `buyprice` or `msrp`.
@@ -140,6 +147,22 @@ threshold is a consumer's judgement, and the API's job is to say stock went from
 The version is part of the `type`. A field **added** is not a new version. A
 field removed or renamed, or a meaning changed, becomes `.v2`, and both are
 published while consumers move. Consumers must ignore fields they do not know.
+
+## classic-models.procurement (not produced by this API)
+
+A third topic exists alongside `catalog`/`sales`/`payments`, but this service
+neither produces nor consumes it — `classic-models-api`'s own Kafka account
+stays write-only on its own three topics, unchanged. `reorder.requested.v1`,
+`reorder.confirmed.v1` and `reorder.rejected.v1` are raised and consumed
+entirely within the supply agent (`classic-models-agent-flows`), which acts as
+both requester and — simulating a supplier — the one who answers. The only
+place this API is involved is the ordinary front door: a fulfilled reorder
+reaches stock through the same `PATCH /catalog/v1/products/{productcode}/`
+any other write does, under the `restocker` role, and it is `product.stock_changed`
+that carries the fact — see `reason` above.
+
+Documented here only so a reader of this file is not surprised: the estate has
+a second, independent event stream that this API is not a party to.
 
 ## Delivery
 
