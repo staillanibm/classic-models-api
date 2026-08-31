@@ -126,28 +126,6 @@ kafka:
   enabled: false
   bootstrap: kafka-kafka-bootstrap.kafka.svc.cluster.local:9093
   username: classic-models-api
-  # Where the Strimzi operator watches. It runs with watchAnyNamespace=false, so
-  # a KafkaTopic or KafkaUser created anywhere else is ignored, silently.
-  namespace: kafka
-  cluster: kafka
-  # This API's own prefix. The account may write here and nowhere else.
-  topicPrefix: classic-models.
-  # One topic per aggregate, not one per event type: per type would lose the
-  # order between product.created and product.stock_changed for the same
-  # product, which is the one ordering a consumer actually needs.
-  topics:
-    - name: classic-models.catalog
-      partitions: 3
-      replicas: 1
-      retentionMs: 604800000   # 7 days
-    - name: classic-models.sales
-      partitions: 3
-      replicas: 1
-      retentionMs: 604800000
-    - name: classic-models.payments
-      partitions: 3
-      replicas: 1
-      retentionMs: 604800000
   # Where the SCRAM password and the cluster CA are read from: a
   # ClusterSecretStore that reaches into the Kafka operator's namespace.
   secretStore: kafka-credentials

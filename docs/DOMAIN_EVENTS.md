@@ -51,12 +51,14 @@ which is the one ordering a consumer actually needs.
 Ordering holds **per entity**, because the partition key is the entity's id. It
 does not hold across entities, and no consumer should assume it does.
 
-The topics and the account that writes them are declared **by this chart**
-(`helm/classic-models-api/templates/kafka/topics.yaml`), in the Kafka operator's
-namespace. This API defines the events, so it defines where they land and what
-may write them; the Kafka repo deploys a cluster and owns none of this. The
-topics carry `helm.sh/resource-policy: keep` — uninstalling the API must not
-take the event history with it.
+The topics and the account that writes them are **not declared here**. Kafka is
+administered centrally: the platform team owns topics and ACLs, in
+`k8s-platform/kafka-topology/`. This API owns what an event *means* — the
+contract on this page — and asks for the topic it needs.
+
+Self-service, when it arrives, will not come from moving these files: it comes
+from an event gateway that virtualises topics, and the developer portal that
+socialises them, the way the REST APIs already are.
 
 ## The catalogue
 
