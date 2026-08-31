@@ -51,6 +51,13 @@ which is the one ordering a consumer actually needs.
 Ordering holds **per entity**, because the partition key is the entity's id. It
 does not hold across entities, and no consumer should assume it does.
 
+The topics and the account that writes them are declared **by this chart**
+(`helm/classic-models-api/templates/kafka/topics.yaml`), in the Kafka operator's
+namespace. This API defines the events, so it defines where they land and what
+may write them; the Kafka repo deploys a cluster and owns none of this. The
+topics carry `helm.sh/resource-policy: keep` — uninstalling the API must not
+take the event history with it.
+
 ## The catalogue
 
 Six types. Each has a consumer today — an event with none is a contract that has
