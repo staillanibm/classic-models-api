@@ -69,7 +69,17 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderdetailSerializer(serializers.ModelSerializer):
-    """Order line items with product details"""
+    """Order line items with product details.
+
+    Carries its order's `requireddate` and `status` alongside the line itself.
+    Denormalised on purpose: a caller asking "what does this reference commit
+    to, and by when" would otherwise need a second call per distinct order just
+    to answer a question this endpoint already has everything for —
+    `select_related("ordernumber")` on the viewset makes it free.
+    """
+
+    requireddate = serializers.DateField(source="ordernumber.requireddate", read_only=True)
+    order_status = serializers.CharField(source="ordernumber.status", read_only=True)
 
     class Meta:
         model = Orderdetail
