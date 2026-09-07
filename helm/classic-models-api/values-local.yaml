@@ -6,7 +6,9 @@ api:
     # v1.0.4: adds opentelemetry-instrumentation-logging, without which
     # OTEL_PYTHON_LOG_CORRELATION was inert and every application log line
     # carried "otelTraceID": null.
-    tag: v1.0.4
+    # v1.0.5: exposes outbox_unpublished_total, polled by each worker on its
+    # own timer, so a backlog is visible whether or not the relay is running.
+    tag: v1.0.5
     pullPolicy: Always
   # Secret created manually (not tracked in git):
   #   kubectl create secret docker-registry ghcr-pull-secret \
