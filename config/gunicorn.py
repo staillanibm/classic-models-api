@@ -14,6 +14,14 @@ time. Two obligations follow:
 
 import os
 import shutil
+import threading
+import time
+
+#: How often each worker refreshes the outbox-backlog gauge. The backlog only
+#: matters on the scale of hours or days (it grows while the relay is off),
+#: so this trades a little staleness for one cheap indexed query per worker
+#: per tick rather than one per scrape.
+OUTBOX_GAUGE_POLL_SECONDS = 60
 
 
 def _multiproc_dir():
@@ -41,3 +49,26 @@ def child_exit(server, worker):
     from prometheus_client import multiprocess
 
     multiprocess.mark_process_dead(worker.pid)
+
+
+def post_worker_init(worker):
+    """Worker: start polling the outbox backlog for its unpublished-count gauge.
+
+    Driven by a timer rather than by whichever request happens to land on this
+    worker (a Prometheus scrape or a kubelet probe might always land on a
+    different one): the whole reason this gauge exists is to be visible without
+    anyone having to ask for it.
+    """
+
+    def _loop():
+        from events.metrics import refresh_outbox_unpublished_gauge
+
+        while True:
+            try:
+                refresh_outbox_unpublished_gauge()
+            except Exception:
+                # A blip here must not take the worker down; the next tick retries.
+                pass
+            time.sleep(OUTBOX_GAUGE_POLL_SECONDS)
+
+    threading.Thread(target=_loop, daemon=True).start()
